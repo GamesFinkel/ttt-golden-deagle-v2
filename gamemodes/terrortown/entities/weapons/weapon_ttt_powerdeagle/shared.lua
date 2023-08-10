@@ -109,50 +109,15 @@ SWEP.IsSilent = false
 SWEP.NoSights = false
 
 -- support for TTT Custom Roles
-local function IsInnocentRole(role)
-	return (ROLE_INNOCENT and role == ROLE_INNOCENT)
-		or (ROLE_DETECTIVE and role == ROLE_DETECTIVE)
-		or (ROLE_MERCENARY and role == ROLE_MERCENARY)
-		or (ROLE_PHANTOM and role == ROLE_PHANTOM)
-		or (ROLE_GLITCH and role == ROLE_GLITCH)
-end
-
--- support for TTT Custom Roles
-local function IsTraitorRole(role)
-	return (ROLE_TRAITOR and role == ROLE_TRAITOR)
-		or (ROLE_ASSASSIN and role == ROLE_ASSASSIN)
-		or (ROLE_HYPNOTIST and role == ROLE_HYPNOTIST)
-		or (ROLE_ZOMBIE and role == ROLE_ZOMBIE)
-		or (ROLE_VAMPIRE and role == ROLE_VAMPIRE)
-		or (ROLE_KILLER and role == ROLE_KILLER)
-end
-
-local function IsInTraitorTeam(ply)
-	if (TTT2) then -- support for TTT2
-		return ply:GetTeam() == TEAM_TRAITOR
-	else
-		return IsTraitorRole(ply:GetRole())
-	end
-end
 
 local function IsInInnocentTeam(ply)
-	if (TTT2) then  -- support for TTT2
-		return ply:GetTeam() == TEAM_INNOCENT
-	else
-		return IsInnocentRole(ply:GetRole())
-	end
-end
-
-local function AreTeamMates(ply1, ply2)
-	if (TTT2) then -- support for TTT2
-		return ply1:IsInTeam(ply2)
-	else
-		if (ply1.GetTeam and ply2.GetTeam) then -- support for TTT Totem
-			return ply1:GetTeam() == ply2:GetTeam()
-		else
-			return IsInnocentRole(ply1:GetRole()) == IsInnocentRole(ply2:GetRole()) or IsTraitorRole(ply1:GetRole()) == IsTraitorRole(ply2:GetRole())
+	local inno_roles = GetTeamRoles(INNOCENT_ROLES)
+	for _, role in ipairs(inno_roles) do
+		if(ply:GetRole()==role) then
+			return true
 		end
 	end
+	return false
 end
 
 -- Precache sounds
@@ -196,19 +161,11 @@ function SWEP:PrimaryAttack()
 
 			hook.Add("EntityTakeDamage", title, function(ent, dmginfo)
 				if (IsValid(ent) and ent:IsPlayer() and dmginfo:IsBulletDamage() and dmginfo:GetAttacker():GetActiveWeapon() == self) then
-					local killMode = GetConVar("ttt_golden_deagle_kill_mode"):GetInt()
-					local suicideMode = GetConVar("ttt_golden_deagle_suicide_mode"):GetInt()
-
-					if ((TTT2 and owner:HasEquipmentItem("item_ttt_golden_bullet")) or ((killMode == 0 or killMode == 2) and IsInTraitorTeam(ent)) or ((killMode == 1 or killMode == 2) and not AreTeamMates(owner, ent))) then
+					if (IsInInnocentTeam(ent)==false) then
 						hook.Remove("EntityTakeDamage", title) -- remove hook before applying new damage
 						dmginfo:ScaleDamage(270) -- deals 9990 damage
-
-						if (TTT2) then
-							owner:RemoveEquipmentItem("item_ttt_golden_bullet")
-						end
-
 						return false -- one hit the traitor
-					elseif ((suicideMode == 0 and IsInInnocentTeam(ent)) or (suicideMode == 1 and AreTeamMates(owner, ent)) or suicideMode == 2) then
+					else
 						local newdmg = DamageInfo()
 						newdmg:SetDamage(9990)
 						newdmg:SetAttacker(owner)
